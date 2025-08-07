@@ -6,10 +6,25 @@ on:
         description: "Select your choice"
         required: true
         type: choice
-        options: 
-        - apply 
+        options:
+        - apply
         - destroy
 
+      region:
+        description: "Provide region"
+        required: true
+        type: choice
+        options:
+        - us-east-1
+        - us-east-2
+        
+      ami_id:
+        description: "Provide AMI ID"
+        required: true
+
+      instance_type:
+        description: "Provide Instance Type"
+        required: true
 
 jobs:
   deploy:
@@ -17,6 +32,14 @@ jobs:
     steps:
     - name: Git Clone
       uses: actions/checkout@v4
+
+    - name: Create tfvars file
+      run: |
+        cat <<EOF > terraform.tfvars
+        ami_id = "${{ inputs.ami_id }}"
+        instance_type = "${{ inputs.instance_type }}"
+        region = "${{ inputs.region }}"
+        EOF
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
@@ -33,14 +56,11 @@ jobs:
     - name: Init
       run: terraform init
 
-    - name: Apply
-      run: terraform apply -auto-approve
-    - name: Commit and Push Changes
+    - name: Apply or Destroy
       run: |
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git config --global user.name "github-actions[bot]"
-        git add .
-        git diff --cached --quiet || git commit -m "chore: update terraform state"
-        git push
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if [[ "${{ inputs.action }}" == "apply" ]]
+        then
+          terraform apply -auto-approve
+        else
+          terraform destroy -auto-approve
+        fi
